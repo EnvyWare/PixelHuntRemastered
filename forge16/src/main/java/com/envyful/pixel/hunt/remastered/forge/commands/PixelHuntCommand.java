@@ -16,7 +16,11 @@ import net.minecraft.entity.player.ServerPlayerEntity;
         aliases = {
                "pixelhunt",
                "pokemonhunt",
-               "pokehunt"
+               "pokehunt",
+                "hunts",
+                "pixelhunts",
+                "pokemonhunts",
+                "pokehunts"
         }
 )
 @SubCommands(ReloadCommand.class)

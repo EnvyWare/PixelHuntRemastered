@@ -23,7 +23,7 @@ public class PokemonSpawnListener extends LazyListener {
 
     @SubscribeEvent
     public void onPokemonSpawn(EntityJoinWorldEvent event) {
-        if (!PixelHuntForge.getInstance().getConfig().isEnableParticles()) {
+        if (!this.mod.getConfig().isEnableParticles()) {
             return;
         }
 
@@ -39,6 +39,7 @@ public class PokemonSpawnListener extends LazyListener {
             for (PixelHunt hunt : PixelHuntFactory.getAllHunts()) {
                 if (hunt.isSpeciesHunted(pixelmon.getPokemon())) {
                     ParticleDisplayTask.addPokemon(pixelmon);
+                    hunt.applyNickname(pixelmon);
                     return;
                 }
             }

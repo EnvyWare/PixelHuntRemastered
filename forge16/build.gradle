@@ -52,11 +52,11 @@ dependencies {
 
     shadow group: 'org.spongepowered', name: 'configurate-yaml', version: '4.0.0'
 
-    shadow (group: 'com.github.EnvyWare.API', name: 'commons', version: '2.6.1')
-    shadow (group: 'com.github.EnvyWare.API', name: 'forge16', version: '2.6.1') {
+    shadow (group: 'com.github.EnvyWare.API', name: 'commons', version: '2.6.9')
+    shadow (group: 'com.github.EnvyWare.API', name: 'forge16', version: '2.6.9') {
         transitive = false
     }
-    shadow (group: 'com.github.EnvyWare.API', name: 'reforged16', version: '2.6.1') {
+    shadow (group: 'com.github.EnvyWare.API', name: 'reforged16', version: '2.6.9') {
         transitive = false
     }
 

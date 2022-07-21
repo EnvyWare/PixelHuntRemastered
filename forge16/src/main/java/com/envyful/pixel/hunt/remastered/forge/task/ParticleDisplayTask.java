@@ -6,11 +6,7 @@ import com.envyful.pixel.hunt.remastered.api.PixelHunt;
 import com.envyful.pixel.hunt.remastered.api.PixelHuntFactory;
 import com.envyful.pixel.hunt.remastered.forge.PixelHuntForge;
 import com.google.common.collect.Lists;
-import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -48,25 +44,22 @@ public class ParticleDisplayTask extends LazyListener {
         }
 
         Iterator<PixelmonEntity> iterator = this.huntPokemon.iterator();
+        UtilConcurrency.runAsync(() -> {
+            while (iterator.hasNext()) {
+                PixelmonEntity pixelmon = iterator.next();
 
-        while (iterator.hasNext()) {
-            PixelmonEntity pixelmon = iterator.next();
+                if (pixelmon == null || !pixelmon.isAlive() || pixelmon.hasOwner()) {
+                    iterator.remove();
+                    continue;
+                }
 
-            if (pixelmon == null || !pixelmon.isAlive() || pixelmon.hasOwner()
-                    || !this.isHuntPokemon(pixelmon.getPokemon())) {
-                iterator.remove();
-                continue;
+                for (PixelHunt hunt : PixelHuntFactory.getAllHunts()) {
+                    if (hunt.isSpeciesHunted(pixelmon.getPokemon())) {
+                        hunt.spawnParticle(pixelmon);
+                    }
+                }
             }
 
-            ServerWorld worldServer = (ServerWorld)pixelmon.level;
-            Vector3d positionVector = pixelmon.position();
-
-            worldServer.addParticle(ParticleTypes.FLAME,
-                    positionVector.x, positionVector.y, positionVector.z,
-                    5, 0, 0.05);
-        }
-
-        UtilConcurrency.runAsync(() -> {
             for (PixelHunt allHunt : PixelHuntFactory.getAllHunts()) {
                 if (allHunt.hasTimedOut()) {
                     allHunt.end();
@@ -75,15 +68,4 @@ public class ParticleDisplayTask extends LazyListener {
             }
         });
     }
-
-    private boolean isHuntPokemon(Pokemon pokemon) {
-        for (PixelHunt hunt : PixelHuntFactory.getAllHunts()) {
-            if (hunt.isSpeciesHunted(pokemon)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
 }

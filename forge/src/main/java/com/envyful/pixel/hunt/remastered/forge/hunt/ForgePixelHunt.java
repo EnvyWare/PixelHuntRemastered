@@ -1,6 +1,5 @@
 package com.envyful.pixel.hunt.remastered.forge.hunt;
 
-import com.envyful.api.config.util.UtilConfig;
 import com.envyful.api.forge.chat.UtilChatColour;
 import com.envyful.api.forge.concurrency.UtilForgeConcurrency;
 import com.envyful.api.forge.items.ItemBuilder;
@@ -21,7 +20,6 @@ import com.google.common.collect.Lists;
 import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.entities.pixelmon.stats.StatsType;
-import com.pixelmonmod.pixelmon.enums.EnumSpecies;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextComponentString;
@@ -179,5 +177,15 @@ public class ForgePixelHunt implements PixelHunt {
         long timePassed = System.currentTimeMillis() - this.currentStart;
 
         return timePassed >= this.duration;
+    }
+
+    @Override
+    public void spawnParticle(Object o) {
+
+    }
+
+    @Override
+    public void applyNickname(Object o) {
+
     }
 }

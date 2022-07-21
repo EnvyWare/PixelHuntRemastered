@@ -12,54 +12,36 @@ import com.envyful.api.reforged.pixelmon.PokemonGenerator;
 import com.envyful.api.reforged.pixelmon.PokemonSpec;
 import com.envyful.api.time.UtilTimeFormat;
 import com.envyful.pixel.hunt.remastered.api.PixelHunt;
-import com.envyful.pixel.hunt.remastered.forge.PixelHuntForge;
 import com.envyful.pixel.hunt.remastered.forge.config.PixelHuntConfig;
 import com.envyful.pixel.hunt.remastered.forge.event.PixelHuntStartEvent;
 import com.envyful.pixel.hunt.remastered.forge.event.PixelHuntWonEvent;
-import com.google.common.collect.Lists;
 import com.pixelmonmod.pixelmon.Pixelmon;
 import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.pokemon.stats.BattleStatsType;
+import com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Util;
 import net.minecraft.util.text.ChatType;
-import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.ITextComponent;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
 import org.spongepowered.configurate.ConfigurationNode;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class ForgePixelHunt implements PixelHunt {
 
-    private final List<String> rewardCommands = Lists.newArrayList();
-    private final List<String> rewardDescription = Lists.newArrayList();
-
+    private final PixelHuntConfig.HuntConfig huntConfig;
     private PokemonGenerator generator;
     private ItemStack displayItem;
     private PokemonSpec currentPokemon;
-    private boolean randomCommands;
-    private boolean maxIvs;
-    private boolean ivMultiplierEnabled;
-    private float ivMultiplier;
     private long duration;
     private long currentStart;
-    private int guiX;
-    private int guiY;
 
     public ForgePixelHunt(PixelHuntConfig.HuntConfig huntConfig) {
+        this.huntConfig = huntConfig;
         this.generator = new PokemonGenerator(huntConfig.getGeneratorConfig());
-        this.randomCommands = huntConfig.isRandomCommands();
-        this.maxIvs = huntConfig.isMaxIvs();
-        this.ivMultiplierEnabled = huntConfig.isIvMultiplierEnabled();
-        this.ivMultiplier = huntConfig.getIvMultiplier();
         this.duration = TimeUnit.MINUTES.toMillis(huntConfig.getMaxDurationMinutes());
-        this.rewardCommands.addAll(huntConfig.getRewardCommands());
-        this.rewardDescription.addAll(huntConfig.getRewardDescription());
-        this.guiX = huntConfig.getGuiX();
-        this.guiY = huntConfig.getGuiY();
     }
 
     @Override
@@ -69,21 +51,27 @@ public class ForgePixelHunt implements PixelHunt {
     public void display(Pane pane) {
         ItemBuilder builder = new ItemBuilder(this.displayItem.copy());
 
-        for (String s : PixelHuntForge.getInstance().getConfig().getPreLore()) {
-            builder.addLore(UtilChatColour.translateColourCodes('&', s.replace("%time%",
-                                                                               UtilTimeFormat.getFormattedDuration((this.currentStart + this.duration) - System.currentTimeMillis()))));
-        }
+        builder.name(UtilChatColour.colour(this.huntConfig.getDisplayName().replace("%species%", this.currentPokemon.getDisplayName())));
 
-        builder.lore(this.currentPokemon.getDescription("§a", "§b").stream().map(StringTextComponent::new).collect(Collectors.toList()));
-
-        for (String s : PixelHuntForge.getInstance().getConfig().getExtraLore()) {
-            builder.addLore(UtilChatColour.translateColourCodes('&', s.replace("%time%",
+        for (String s : this.huntConfig.getPreLore()) {
+            builder.addLore(UtilChatColour.colour(s.replace("%time%",
                     UtilTimeFormat.getFormattedDuration((this.currentStart + this.duration) - System.currentTimeMillis()))));
         }
 
-        builder.addLore(UtilChatColour.translateColourCodes('&', this.rewardDescription).toArray(new String[0]));
+        for (String s : this.currentPokemon.getDescription(this.huntConfig.getDescriptionColour(), this.huntConfig.getDescriptionOffColour())) {
+            builder.addLore(UtilChatColour.colour(s));
+        }
 
-        pane.set(this.guiX, this.guiY, GuiFactory.displayableBuilder(ItemStack.class)
+        for (String s : this.huntConfig.getExtraLore()) {
+            builder.addLore(UtilChatColour.colour(s.replace("%time%",
+                    UtilTimeFormat.getFormattedDuration((this.currentStart + this.duration) - System.currentTimeMillis()))));
+        }
+
+        for (String s : this.huntConfig.getRewardDescription()) {
+            builder.addLore(UtilChatColour.colour(s));
+        }
+
+        pane.set(this.huntConfig.getGuiX(), this.huntConfig.getGuiY(), GuiFactory.displayableBuilder(ItemStack.class)
                 .itemStack(builder.build()).build());
     }
 
@@ -98,10 +86,11 @@ public class ForgePixelHunt implements PixelHunt {
         this.currentStart = System.currentTimeMillis();
         this.currentPokemon = event.getGeneratedPokemon();
 
-        for (String broadcast : PixelHuntForge.getInstance().getConfig().getSpawnBroadcast()) {
+        for (String broadcast : this.huntConfig.getSpawnBroadcast()) {
             ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastMessage(
-                    new StringTextComponent(UtilChatColour.translateColourCodes('&', broadcast
-                            .replace("%pokemon%", this.currentPokemon.getDisplayName()))), ChatType.CHAT, Util.NIL_UUID);
+                    UtilChatColour.colour(broadcast.replace("%pokemon%", this.currentPokemon.getDisplayName())),
+                    ChatType.CHAT, Util.NIL_UUID
+            );
         }
 
         return this.currentPokemon;
@@ -132,15 +121,15 @@ public class ForgePixelHunt implements PixelHunt {
 
         Pixelmon.EVENT_BUS.post(wonEvent);
 
-        if (this.ivMultiplierEnabled) {
+        if (this.huntConfig.isIvMultiplierEnabled()) {
             for (BattleStatsType value : BattleStatsType.values()) {
                 if (value == BattleStatsType.NONE || value == BattleStatsType.ACCURACY || value == BattleStatsType.EVASION) {
                     continue;
                 }
 
-                caught.getIVs().setStat(value, Math.min(31, (int) (caught.getIVs().getStat(value) * this.ivMultiplier)));
+                caught.getIVs().setStat(value, Math.min(31, (int) (caught.getIVs().getStat(value) * this.huntConfig.getIvMultiplier())));
             }
-        } else if (this.maxIvs) {
+        } else if (this.huntConfig.isMaxIvs()) {
             for (BattleStatsType value : BattleStatsType.values()) {
                 if (value == BattleStatsType.NONE || value == BattleStatsType.ACCURACY || value == BattleStatsType.EVASION) {
                     continue;
@@ -150,11 +139,20 @@ public class ForgePixelHunt implements PixelHunt {
             }
         }
 
+        for (String broadcast : this.huntConfig.getRewardBroadcast()) {
+            ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastMessage(
+                    UtilChatColour.colour(broadcast
+                            .replace("%pokemon%", this.currentPokemon.getDisplayName())
+                            .replace("%player%", parent.getName().getString())), ChatType.CHAT, Util.NIL_UUID
+            );
+        }
+
         UtilForgeConcurrency.runSync(() -> {
-            if (this.randomCommands) {
-                UtilForgeServer.executeCommand(UtilRandom.getRandomElement(this.rewardCommands).replace("%player%", parent.getName().getString()));
+            if (this.huntConfig.isRandomCommands()) {
+                UtilForgeServer.executeCommand(UtilRandom.getRandomElement(this.huntConfig.getRewardCommands())
+                        .replace("%player%", parent.getName().getString()));
             } else {
-                for (String rewardCommand : this.rewardCommands) {
+                for (String rewardCommand : this.huntConfig.getRewardCommands()) {
                     UtilForgeServer.executeCommand(rewardCommand.replace("%player%", parent.getName().getString()));
                 }
             }
@@ -167,11 +165,11 @@ public class ForgePixelHunt implements PixelHunt {
             return;
         }
 
-        for (String message : PixelHuntForge.getInstance().getConfig().getTimeoutBroadcast()) {
-            ServerLifecycleHooks.getCurrentServer().getPlayerList()
-                    .broadcastMessage(new StringTextComponent(UtilChatColour.translateColourCodes('&',
-                            message.replace("%pokemon%",
-                            this.currentPokemon.getDisplayName()))), ChatType.CHAT, Util.NIL_UUID);
+        for (String message : this.huntConfig.getTimeoutBroadcast()) {
+            ServerLifecycleHooks.getCurrentServer().getPlayerList().broadcastMessage(
+                    UtilChatColour.colour(message.replace("%pokemon%", this.currentPokemon.getDisplayName())),
+                    ChatType.CHAT, Util.NIL_UUID
+            );
         }
     }
 
@@ -180,5 +178,33 @@ public class ForgePixelHunt implements PixelHunt {
         long timePassed = System.currentTimeMillis() - this.currentStart;
 
         return timePassed >= this.duration;
+    }
+
+    @Override
+    public void spawnParticle(Object o) {
+        if (!(o instanceof PixelmonEntity)) {
+            return;
+        }
+
+        PixelmonEntity pixelmon = (PixelmonEntity) o;
+
+        pixelmon.level.addParticle(this.huntConfig.getParticles(), pixelmon.getX(), pixelmon.getY(), pixelmon.getZ(),
+                5, 0, 0.05);
+    }
+
+    @Override
+    public void applyNickname(Object o) {
+        if (!(o instanceof PixelmonEntity)) {
+            return;
+        }
+
+        PixelmonEntity pixelmon = (PixelmonEntity) o;
+        if (pixelmon.hasOwner()) {
+            return;
+        }
+
+        ITextComponent nickname = UtilChatColour.colour(this.huntConfig.getPokemonNickname().replace("%species%",
+                pixelmon.getLocalizedName()));
+        pixelmon.getPokemon().setNickname(nickname);
     }
 }
